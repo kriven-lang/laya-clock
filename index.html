@@ -1,0 +1,76 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Laya Clock V4 — Full-Cycle Nadai Geometry</title><style>body{margin:0;background:#0d1423;color:#e9effb;font-family:system-ui,sans-serif}main{max-width:880px;margin:auto;padding:20px}h1{margin-bottom:4px}.muted{color:#9eacc4}section{background:#172238;border:1px solid #2b3b58;border-radius:18px;padding:18px;margin:16px 0}.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}label{display:block;color:#afc0d9;font-size:13px}select,input{width:100%;box-sizing:border-box;margin-top:6px;background:#0e192c;color:white;border:1px solid #4b5d7c;border-radius:9px;padding:10px}button{background:#21b5a5;border:0;border-radius:10px;padding:12px 18px;color:#061b20;font-weight:700;cursor:pointer}button.secondary{background:#34445e;color:white}#wheel{width:min(100%,500px);display:block;margin:auto}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center}.stat{font-size:20px;text-align:center}#sol{font-size:25px;color:#56e0c9;font-weight:700;text-align:center;min-height:36px}small{color:#9eacc4}.legend{display:flex;justify-content:center;gap:20px;font-size:13px;color:#b6c8df}.dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px}.foot{line-height:1.55;color:#a9bbd2}</style></head><body><main><h1>🥁 Laya Clock</h1><div class="muted">V4 · Full-cycle subdivision geometry · illuminated tala, nadai and solkattu</div><section><div class="controls"><label>Tala<select id="tala"><option value="8">Adi tala · 8 aksharas</option><option value="6">Chatusra-jati Rupaka · 6 aksharas</option><option value="7">Misra Chapu · 7-count teaching grid</option></select></label><label>Nadai<select id="nadai"><option value="4">Chatusra · 4</option><option value="3">Tisra · 3</option><option value="5">Khanda · 5</option><option value="7">Misra · 7</option><option value="9">Sankeerna · 9</option></select></label><label>Tempo (aksharas/min)<input id="bpm" type="number" min="20" max="240" value="65"></label><label>Nadai reference offset (subdivision units)<input id="offset" type="number" min="0" max="100" value="0"></label><label>Subdivisions per akshara multiplier<select id="speed"><option value="1">Base (1×)</option><option value="2">Double speed (2×)</option><option value="4">Quadruple speed (4×)</option></select></label><label>Audio<select id="audio"><option value="all">Tala + subdivision clicks</option><option value="beat">Tala beats only</option><option value="sub">Subdivision clicks only</option></select></label></div></section><section><h3>Solkattu phrase ring</h3><div class="controls">
+<label>Preloaded motif<select id="motif"></select></label>
+<label>Phrase start offset (subdivision units)<input id="phraseOffset" type="number" value="0" min="0" max="999"></label>
+<label>Phrase audio<select id="phraseAudio"><option value="off">Off · click track only</option><option value="on">On · accented phrase starts</option></select></label>
+</div><label style="margin-top:12px">Editable solkattu · one token per unit, use <b>.</b> for silence<input id="custom" type="text" value="" placeholder="Ta Ri Ki Ta Ta Ka Tham Tham . ."></label>
+<p class="foot" id="motifNote"></p>
+<div id="phraseReadout" class="stat" style="font-size:15px;color:#daafff"></div>
+</section><section><svg id="wheel" viewBox="0 0 420 420" aria-label="Concentric tala and nadai rings with illuminated spokes"></svg><div class="legend"><span><i class="dot" style="background:#26c5b4"></i>Tala beat (teal)</span><span><i class="dot" style="background:#ffbf69"></i>Nadai pulse (amber)</span><span><i class="dot" style="background:#c69aff"></i>Phrase (violet)</span></div><p id="sol">Tha</p><p class="stat" id="readout">Beat 1 · subdivision 1 · Samam</p><div class="row"><button id="start">▶ Play</button><button id="step" class="secondary">Step one subdivision</button><button id="reset" class="secondary">Reset</button></div><p style="text-align:center"><small>Tap Play to enable audio. Keep this tab active for best timing.</small></p></section><section><h3>How to read the clock · V4</h3><p class="foot">The outer teal ring has one fixed spoke for each tala akshara. The amber ring subdivides <strong>each</strong> akshara across the entire tala cycle: Adi tala in chatusra nadai has 8 × 4 = 32 spokes, not four spokes repeated around a separate miniature clock. The highlighted amber spoke advances one subdivision at a time. The amber reference dot marks the selected offset from true north (samam). Because an integer subdivision shift leaves a uniform lattice looking identical, the reference marker makes the phase shift visible without changing the underlying tala-aligned grid.</p><p class="foot">The violet ring represents the selected repeating solkattu phrase, whose length can differ from the tala cycle. Its phrase-start offset is independent of the amber reference offset. A dot in the phrase text represents one silent subdivision, not necessarily a sustained stroke. The tempo control measures tala aksharas per minute; the speed multiplier increases pulses per akshara and does not itself redefine kalai. Audio remains synthesized clicks. These motifs are illustrative practice patterns, not verified transcriptions.</p></section></main><script>
+const $=id=>document.getElementById(id), svg=$('wheel');let ac=null,playing=false,timer=null,step=0,nextTime=0,startedAt=0,uiFrame=null;const patterns={3:['Tha','Ki','Ta'],4:['Tha','Ka','Dhi','Mi'],5:['Tha','Ka','Tha','Ki','Ta'],7:['Tha','Ki','Ta','Tha','Ka','Dhi','Mi'],9:['Tha','Ka','Dhi','Mi','Tha','Ka','Tha','Ki','Ta']};const motifs=[
+{name:'Chatusra · Tha Ka Dhi Mi',n:4,txt:'Tha Ka Dhi Mi',note:'Four equal units; basic chatusra subdivision.'},
+{name:'Tisra · Tha Ki Ta',n:3,txt:'Tha Ki Ta',note:'Three equal units; basic tisra subdivision.'},
+{name:'Khanda · Tha Ka Tha Ki Ta',n:5,txt:'Tha Ka Tha Ki Ta',note:'Five equal units, commonly grouped 2 + 3.'},
+{name:'Misra · Tha Ki Ta / Tha Ka Dhi Mi',n:7,txt:'Tha Ki Ta Tha Ka Dhi Mi',note:'Seven units grouped 3 + 4.'},
+{name:'Misra · Tha Ka Dhi Mi / Tha Ki Ta',n:7,txt:'Tha Ka Dhi Mi Tha Ki Ta',note:'Seven units grouped 4 + 3.'},
+{name:'Sankeerna · Tha Ka Dhi Mi / Tha Ka Tha Ki Ta',n:9,txt:'Tha Ka Dhi Mi Tha Ka Tha Ki Ta',note:'Nine units grouped 4 + 5.'},
+{name:'Seven-unit phrase · Ta Ri Ki Ta / Ta Ka Tham',n:7,txt:'Ta Ri Ki Ta Ta Ka Tham',note:'User-supplied seven-unit phrase; phrase length alone does not establish the underlying nadai.'},
+{name:'Phrase with karvai · Ta Ri Ki Ta / Ta Ka Tham / Tham . .',n:7,txt:'Ta Ri Ki Ta Ta Ka Tham Tham . .',note:'User-supplied ten-unit phrase. Each dot is a silent subdivision; this is not a verified video transcription.'},
+{name:'Chatusra · Tha Dhi Thom Nam',n:4,txt:'Tha Dhi Thom Nam',note:'A four-unit practice sollu; stroke realization varies by bani.'},
+{name:'Tisra · Tha Dhi Thom',n:3,txt:'Tha Dhi Thom',note:'Three-unit practice sollu; stroke realization varies by bani.'}
+];
+let phraseTokens=[];
+function loadMotif(){let x=motifs[+$('motif').value];$('custom').value=x.txt;$('motifNote').textContent=x.note;phraseTokens=x.txt.trim().split(/\s+/);draw(step)}
+function updatePhrase(){phraseTokens=$('custom').value.trim().split(/\s+/).filter(Boolean);$('motifNote').textContent='Custom phrase. Each token occupies one subdivision unit; use . for a silent unit.';draw(step)}
+function phraseAt(p){let len=phraseTokens.length;if(!len)return {index:-1,token:'—',len:0};let offset=Number($('phraseOffset').value)||0;let index=((p-offset)%len+len)%len;return {index,token:phraseTokens[index],len}}
+$('motif').innerHTML=motifs.map((m,i)=>`<option value="${i}">${m.name}</option>`).join('');
+const ns='http://www.w3.org/2000/svg';function node(tag,attrs={},text=''){let e=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));if(text)e.textContent=text;svg.appendChild(e);return e}function line(r1,r2,a,color,width=1){let q=a*Math.PI*2;node('line',{x1:210+Math.sin(q)*r1,y1:210-Math.cos(q)*r1,x2:210+Math.sin(q)*r2,y2:210-Math.cos(q)*r2,stroke:color,'stroke-width':width,'stroke-linecap':'round'})}function config(){return {beats:+$('tala').value,n:+$('nadai').value,m:+$('speed').value,bpm:Math.max(20,Math.min(240,+$('bpm').value||65)),offset:Math.max(0,+$('offset').value||0)}}function draw(p=step){
+ const {beats,n,m,offset}=config(),unit=n*m,total=beats*unit;
+ const progress=((p%total)+total)%total,beat=Math.floor(progress/unit),within=progress%unit;
+ const shift=offset%total,phase=(progress+shift)%total;
+ const phrase=phraseAt(p),count=phrase.len;
+ svg.replaceChildren();
+ for(const r of [185,140,106,72])node('circle',{cx:210,cy:210,r,fill:'none',stroke:r===72?'#594472':'#344760','stroke-width':1.5});
+ // Outer ring: one fixed radial line per tala akshara.
+ for(let i=0;i<beats;i++){
+   let active=i===beat;
+   if(active)line(143,185,i/beats,'#26c5b4',12);
+   line(143,185,i/beats,active?'#d6fff7':i===0?'#388c84':'#7186a3',active?5:2);
+   let angle=(i+.5)/beats*Math.PI*2;
+   node('text',{x:210+Math.sin(angle)*165,y:214-Math.cos(angle)*165,
+    'text-anchor':'middle',fill:active?'#74f7df':'#d7e2f3',
+    'font-size':15,'font-weight':active?'bold':'normal'},String(i+1));
+ }
+ // Middle ring: subdivide EACH tala beat. The full circle contains beats*n*m spokes.
+ // The underlying grid remains tala-aligned; offset shifts the highlighted phase/reference.
+ for(let i=0;i<total;i++){
+   const active=i===phase,beatBoundary=i%unit===0;
+   if(active)line(108,138,i/total,'#ffbf69',10);
+   line(108,beatBoundary?138:128,i/total,
+    active?'#fff0cd':beatBoundary?'#a4773d':'#64748b',
+    active?4.5:beatBoundary?2:1.15);
+ }
+ // Reference marker for the offset, even when the regular lattice looks unchanged.
+ const markAngle=shift/total*Math.PI*2;
+ node('circle',{cx:210+Math.sin(markAngle)*121,y:210-Math.cos(markAngle)*121,
+  r:5.5,fill:'#ffbf69',stroke:'#0e192c','stroke-width':2});
+ // Solkattu phrase remains an independent, repeating cyclic sequence.
+ if(count)for(let i=0;i<count;i++){
+   let active=i===phrase.index;
+   if(active)line(75,102,i/count,'#c69aff',10);
+   line(75,102,i/count,active?'#f5e7ff':'#866b9f',active?4:1.3);
+ }
+ node('circle',{cx:210,cy:210,r:69,fill:'#0e192c',stroke:'#594472','stroke-width':1.5});
+ node('text',{x:210,y:183,'text-anchor':'middle',fill:'#e9effb','font-size':progress===0?25:39,'font-weight':700},
+  progress===0?'SAMAM':String(beat+1));
+ node('text',{x:210,y:207,'text-anchor':'middle',fill:'#aabbd3','font-size':11},
+  `Pulse ${progress+1} / ${total}`);
+ const syll=patterns[n][Math.floor(within/m)];
+ $('sol').textContent=`${syll}   ·   ${phrase.token==='.'?'(karvai)':phrase.token}`;
+ $('phraseReadout').textContent=`Phrase: ${phrase.token==='.'?'silence':phrase.token} · unit ${phrase.index+1}/${phrase.len} · ${phrase.index===0?'phrase start':'continuation'}`;
+ $('readout').textContent=`Beat ${beat+1}/${beats} · subdivision ${within+1}/${unit} · full cycle ${progress+1}/${total}${progress===0?' · SAMAM':''} · offset ${shift} (${(360*shift/total).toFixed(2)}°)`;
+}
+function clickAt(t,kind){if(!ac)return;let o=ac.createOscillator(),g=ac.createGain();o.type='sine';o.frequency.setValueAtTime(kind==='samam'?950:kind==='beat'?650:420,t);o.frequency.exponentialRampToValueAtTime(kind==='samam'?520:kind==='beat'?420:280,t+.06);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(kind==='samam'?.28:kind==='beat'?.18:.075,t+.003);g.gain.exponentialRampToValueAtTime(.0001,t+.085);o.connect(g).connect(ac.destination);o.start(t);o.stop(t+.09)}function tick(){if(!playing||!ac)return;let {beats,n,m,bpm}=config(),unit=n*m,total=beats*unit,period=60/bpm/unit;while(nextTime<ac.currentTime+.12){let idx=step%total,kind=idx===0?'samam':idx%unit===0?'beat':'sub',mode=$('audio').value;if(mode==='all'||(mode==='beat'&&kind!=='sub')||(mode==='sub'&&kind==='sub'))clickAt(nextTime,kind);if($('phraseAudio').value==='on'&&phraseAt(step).index===0&&phraseAt(step).token!=='.')clickAt(nextTime,'beat');step++;nextTime+=period}draw((step-1)%total)}function stop(){playing=false;clearInterval(timer);$('start').textContent='▶ Play';draw(step)}$('start').onclick=async()=>{if(playing){stop();return}ac=ac||new(window.AudioContext||window.webkitAudioContext)();await ac.resume();playing=true;nextTime=ac.currentTime+.03;$('start').textContent='❚❚ Pause';tick();timer=setInterval(tick,25)};$('step').onclick=()=>{if(playing)stop();let {beats,n,m}=config();step=(step+1)%(beats*n*m);draw(step)};$('reset').onclick=()=>{if(playing)stop();step=0;draw(0)};['tala','nadai','speed','bpm','offset','audio','phraseOffset','phraseAudio'].forEach(id=>$(id).addEventListener('change',()=>{if(playing)stop();step=0;draw(0)})); 
+$('motif').addEventListener('change',()=>{if(playing)stop();loadMotif()});
+$('custom').addEventListener('input',()=>{if(playing)stop();updatePhrase()});
+loadMotif();
+</script></body></html>
